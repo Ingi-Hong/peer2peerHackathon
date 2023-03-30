@@ -6,24 +6,13 @@ import threading
 import urllib.request
 
 
-class client: 
+class client:
     def __init__(self, host, port):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.SOL_SCOKET, socket.SO_REUSEADDR, 1)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.s.connect(host, port)
 
-    #TODO:end connection with 'exit'
-    def client_connect(s):
-        while True:
-            r_msg = s.recv(1024)
-            if not r_msg:
-                break
-            if r_msg == '':
-                pass
-            else:
-                print(r_msg.decode())
-
-    def client_receive(s):
+    def client_send(self):
         while True:
             s_msg = input().replace('b', '').encode('utf-8')
             if s_msg == '':
@@ -32,56 +21,50 @@ class client:
                 print("wan exit")
                 break
             else:
-                s.sendall(s_msg)
+                self.s.sendall(s_msg)
 
-class server: 
-    def __init__(self, port):
+    def client_loop(self):
+        senderThread = threading.Thread(target=self.client_send, args=([self]))
+        senderThread.start()
+        senderThread.join()
+
+
+class server:
+    def __init__(self, port=6500):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.SOL_SCOKET, socket.SO_REUSEADDR, 1)
-        self.s.bind(('', 6500))
-
-        external_ip = urllib.request.urlopen('https://v4.ident.me/').read().decode('utf8')
-        print(external_ip)
-
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.s.bind(('', port))
 
     def server_connect(self):
-
-        self.s.listen() 
-
         while True:
             received = self.conn.recv(1024)
-            if received ==' ':
+            if received == ' ':
                 pass
             else:
                 print(received.decode())
 
-def init_client(host, port):
-    print("usage: %s [ip adress][port] " % host)
+    def server_loop(self):
+        self.s.listen()
+        (self.conn, self.addr) = self.s.accept()
+        listenerThread = threading.Thread(
+            target=self.server_connect, args=([self]))
+        listenerThread.start()
+        listenerThread.join()
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.connect((sys.argv[1], int(sys.argv[2])))
-    thread1 = threading.Thread(target = client_connect, args = ([s]))
-    thread2 = threading.Thread(target = client_receive, args = ([s]))
-    thread1.start()
-    thread2.start()
-    thread1.join()
-    thread2.join()
-
-
-def init_server(host, port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(('172.20.10.2', 49152))
-    s.listen()
-    (conn, addr) = s.accept() 
-    thread1 = threading.Thread(target = server_connect, args = ([conn]))
-    thread2 = threading.Thread(target = server_sendMsg, args = ([conn]))
-    thread1.start()
-    thread2.start()
-    thread1.join()
-    thread2.join()
 
 if __name__ == '__main__':
-    
-    thread_c = threading.Thread(target=init_client, args = ())
+    my_server = server()
+
+    external_ip = urllib.request.urlopen(
+        'https://v4.ident.me/').read().decode('utf8')
+    print("Tell your friend to connect to: " + external_ip)
+
+    serverThread = threading.Thread(
+        target=my_server.server_loop, args=([my_server]))
+
+    ip_address = input("Enter your friends ip_address: ")
+    port = input("Enter your friends port: ")
+    my_client = client(ip_address, int(port))
+
+    clientThread = threading.Thread(
+        target=my_client.client_loop, args=([my_client]))
