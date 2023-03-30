@@ -24,7 +24,7 @@ def sendMsg(conn):
 if __name__ == '__main__':
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(('127.0.0.1', 80))
+    s.bind(('', 6500))
     s.listen()
     (conn, addr) = s.accept() 
     thread1 = threading.Thread(target = connect, args = ([conn]))
