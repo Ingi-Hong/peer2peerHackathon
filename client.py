@@ -4,7 +4,11 @@ import sys
 import socket
 import threading
 
-#TODO:end connection with 'exit'
+'''
+TODO:end connection with 'exit'
+     Implement SQLite databse with entries:
+        To Message Time isSent
+'''
 def client_connect(s):
     while True:
         r_msg = s.recv(1024)
@@ -49,7 +53,7 @@ def init_client(host, port):
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.connect((sys.argv[1], int(sys.argv[2])))
+    s.connect((host, port))
     thread1 = threading.Thread(target = client_connect, args = ([s]))
     thread2 = threading.Thread(target = client_receive, args = ([s]))
     thread1.start()
@@ -72,5 +76,6 @@ def init_server(host, port):
     thread2.join()
 
 if __name__ == '__main__':
-    
-    thread_c = threading.Thread(target=init_client, args = ())
+    host = input("Enter the host to connect to: ")
+    port = input("Enter the port to connect to: ")
+    thread_c = threading.Thread(target=init_client, args = (host, port))
