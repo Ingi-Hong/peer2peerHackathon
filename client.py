@@ -7,10 +7,14 @@ import urllib.request
 
 
 class client:
-    def __init__(self, host, port):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.s.connect(host, port)
+    def __init__(self, hostPortTuple):
+        try:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.s.connect(hostPortTuple)
+        except Exception as e:
+            print(e)
+            exit(1)
 
     def client_send(self):
         while True:
@@ -24,18 +28,23 @@ class client:
                 self.s.sendall(s_msg)
 
     def client_loop(self):
-        senderThread = threading.Thread(target=self.client_send, args=([self]))
+        senderThread = threading.Thread(target=self.client_send)
         senderThread.start()
         senderThread.join()
 
 
 class server:
     def __init__(self, port=6500):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.s.bind(('', port))
+        try:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.s.bind(('127.0.0.1', port))
+        except Exception as e:
+            print(e)
+            exit(1)    
 
     def server_connect(self):
+        print("Server Accepted Connection")
         while True:
             received = self.conn.recv(1024)
             if received == ' ':
@@ -44,10 +53,12 @@ class server:
                 print(received.decode())
 
     def server_loop(self):
+        print("Server Waiting for Connection", self.s)
         self.s.listen()
         (self.conn, self.addr) = self.s.accept()
+
         listenerThread = threading.Thread(
-            target=self.server_connect, args=([self]))
+            target=self.server_connect)
         listenerThread.start()
         listenerThread.join()
 
@@ -60,11 +71,18 @@ if __name__ == '__main__':
     print("Tell your friend to connect to: " + external_ip)
 
     serverThread = threading.Thread(
-        target=my_server.server_loop, args=([my_server]))
+        target=my_server.server_loop)
+    
+    serverThread.start()
 
     ip_address = input("Enter your friends ip_address: ")
     port = input("Enter your friends port: ")
-    my_client = client(ip_address, int(port))
+    hostPortTuple = (ip_address, int(port))
+    my_client = client(hostPortTuple)
 
     clientThread = threading.Thread(
-        target=my_client.client_loop, args=([my_client]))
+        target=my_client.client_loop)
+    
+    clientThread.start()
+    serverThread.join()
+    clientThread.join()
