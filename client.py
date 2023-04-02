@@ -18,7 +18,7 @@ class client:
 
     def client_send(self):
         while True:
-            s_msg = input().replace('b', '').encode('utf-8')
+            s_msg = input().encode('utf-8')
             if s_msg == '':
                 pass
             if s_msg.decode() == 'exit':
@@ -38,7 +38,7 @@ class server:
         try:
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.s.bind(('127.0.0.1', port))
+            self.s.bind(('', port))
         except Exception as e:
             print(e)
             exit(1)    
