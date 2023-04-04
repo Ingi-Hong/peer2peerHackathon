@@ -36,11 +36,11 @@ class client:
         if ListMessages == []:
             logging.info("Messages not found")
             self.cur.execute('''CREATE TABLE MESSAGES
-                (TO         INT         NOT NULL,
+                (TO         TEXT         NOT NULL,
                 MESSAGE     TEXT        NOT NULL,
                 TIME        TEXT        NOT NULL,
                 ISSENT      INT         NOT NULL);''')
-            logging.info("Receivers table created")
+            logging.info("Messages table created")
         else:
             logging.info("Messages found")
          
