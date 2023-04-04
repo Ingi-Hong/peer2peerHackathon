@@ -3,74 +3,86 @@
 import sys
 import socket
 import threading
-
-#TODO:end connection with 'exit'
-def client_connect(s):
-    while True:
-        r_msg = s.recv(1024)
-        if not r_msg:
-            break
-        if r_msg == '':
-            pass
-        else:
-            print(r_msg.decode())
-
-def client_receive(s):
-    while True:
-        s_msg = input().replace('b', '').encode('utf-8')
-        if s_msg == '':
-            pass
-        if s_msg.decode() == 'exit':
-            print("wan exit")
-            break
-        else:
-            s.sendall(s_msg)
+import urllib.request
 
 
-def server_connect(conn):
-    while True:
-        received = conn.recv(1024)
-        if received ==' ':
-            pass
-        else:
-            print(received.decode())
+class client:
+    def __init__(self, hostPortTuple):
+        try:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.s.connect(hostPortTuple)
+        except Exception as e:
+            print(e)
+            exit(1)
 
-def server_sendMsg(conn):
-    while True:
-        send_msg = input().replace('b', '').encode()
-        if send_msg == ' ':
-            pass
-        else:
-            conn.sendall(send_msg)
+    def client_send(self):
+        while True:
+            s_msg = input().encode('utf-8')
+            if s_msg == '':
+                pass
+            if s_msg.decode() == 'exit':
+                print("wan exit")
+                break
+            else:
+                self.s.sendall(s_msg)
 
-
-def init_client(host, port):
-    print("usage: %s [ip adress][port] " % host)
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.connect((sys.argv[1], int(sys.argv[2])))
-    thread1 = threading.Thread(target = client_connect, args = ([s]))
-    thread2 = threading.Thread(target = client_receive, args = ([s]))
-    thread1.start()
-    thread2.start()
-    thread1.join()
-    thread2.join()
+    def client_loop(self):
+        senderThread = threading.Thread(target=self.client_send)
+        senderThread.start()
+        senderThread.join()
 
 
-def init_server(host, port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(('172.20.10.2', 49152))
-    s.listen()
-    (conn, addr) = s.accept() 
-    thread1 = threading.Thread(target = server_connect, args = ([conn]))
-    thread2 = threading.Thread(target = server_sendMsg, args = ([conn]))
-    thread1.start()
-    thread2.start()
-    thread1.join()
-    thread2.join()
+class server:
+    def __init__(self, port=6500):
+        try:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.s.bind(('', port))
+        except Exception as e:
+            print(e)
+            exit(1)    
+
+    def server_connect(self):
+        print("Server Accepted Connection")
+        while True:
+            received = self.conn.recv(1024)
+            if received == ' ':
+                pass
+            else:
+                print(received.decode())
+
+    def server_loop(self):
+        print("Server Waiting for Connection", self.s)
+        self.s.listen()
+        (self.conn, self.addr) = self.s.accept()
+
+        listenerThread = threading.Thread(
+            target=self.server_connect)
+        listenerThread.start()
+        listenerThread.join()
+
 
 if __name__ == '__main__':
+    my_server = server()
+
+    external_ip = urllib.request.urlopen(
+        'https://v4.ident.me/').read().decode('utf8')
+    print("Tell your friend to connect to: " + external_ip)
+
+    serverThread = threading.Thread(
+        target=my_server.server_loop)
     
-    thread_c = threading.Thread(target=init_client, args = ())
+    serverThread.start()
+
+    ip_address = input("Enter your friends ip_address: ")
+    port = input("Enter your friends port: ")
+    hostPortTuple = (ip_address, int(port))
+    my_client = client(hostPortTuple)
+
+    clientThread = threading.Thread(
+        target=my_client.client_loop)
+    
+    clientThread.start()
+    serverThread.join()
+    clientThread.join()
