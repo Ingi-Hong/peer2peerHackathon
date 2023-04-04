@@ -29,11 +29,16 @@ class client:
             self.cur.execute('''CREATE TABLE RECEIVERS
                 (ID INT PRIMARY KEY     NOT NULL,
                 NAME           TEXT    NOT NULL);''')
+            logging.info("Receivers table created")
         else:
             logging.info("Receivers found")
             
         if ListMessages == []:
             logging.info("Messages not found")
+            self.cur.execute('''CREATE TABLE MESSAGES
+                (TO     INT         NOT NULL,
+                NAME    TEXT        NOT NULL);''')
+            logging.info("Receivers table created")
         else:
             logging.info("Messages found")
          
