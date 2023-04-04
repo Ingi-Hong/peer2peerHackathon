@@ -1,19 +1,50 @@
 # https://stackoverflow.com/questions/56804394/python-p2p-1-to-1-chat-programming
 
+import logging
 import sys
 import socket
 import threading
 import urllib.request
+import sqlite3
 
 
 class client:
     def __init__(self, hostPortTuple):
+        # open the database, or create it if it doesn't exist
+        self.db = sqlite3.connect("receivers.db")
+        self.cur = self.db.cursor()
+
+        # If the database is new, we need to create the tables. 
+        # Check if the tables exist, create if not
+        ListReceivers = self.cur.execute(
+            """SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='RECEIVERS'; """).fetchall()
+        
+        ListMessages = self.cur.execute(
+            """SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='MESSAGES'; """).fetchall()
+        
+        if ListReceivers == []:
+            logging.info("Receivers not found")
+            self.cur.execute('''CREATE TABLE RECEIVERS
+                (ID INT PRIMARY KEY     NOT NULL,
+                NAME           TEXT    NOT NULL);''')
+        else:
+            logging.info("Receivers found")
+            
+        if ListMessages == []:
+            logging.info("Messages not found")
+        else:
+            logging.info("Messages found")
+         
         try:
+            logging.info("client __init__: Connecting to socket")
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.s.connect(hostPortTuple)
         except Exception as e:
             print(e)
+            print(f"Connection invalid, messages sent to {hostPortTuple[0]} will be pending until connection is successful")
             exit(1)
 
     def client_send(self):
@@ -64,25 +95,32 @@ class server:
 
 
 if __name__ == '__main__':
-    my_server = server()
+    format = "%(asctime)s: %(message)s"
+    logging.basicConfig(format=format, level=logging.INFO,
+                        datefmt="%H:%M:%S")
 
-    external_ip = urllib.request.urlopen(
-        'https://v4.ident.me/').read().decode('utf8')
-    print("Tell your friend to connect to: " + external_ip)
+    # my_server = server()
 
-    serverThread = threading.Thread(
-        target=my_server.server_loop)
+    # external_ip = urllib.request.urlopen(
+    #     'https://v4.ident.me/').read().decode('utf8')
+    # print("Tell your friend to connect to: " + external_ip)
+
+    # serverThread = threading.Thread(
+    #     target=my_server.server_loop)
     
-    serverThread.start()
+    # serverThread.start()
 
     ip_address = input("Enter your friends ip_address: ")
     port = input("Enter your friends port: ")
     hostPortTuple = (ip_address, int(port))
+
+    logging.info("Creating client object")
     my_client = client(hostPortTuple)
 
     clientThread = threading.Thread(
         target=my_client.client_loop)
     
+    logging.info("Starting clientThread")
     clientThread.start()
-    serverThread.join()
+    # serverThread.join()
     clientThread.join()
