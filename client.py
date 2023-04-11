@@ -146,6 +146,8 @@ if __name__ == '__main__':
 
         logging.info("Executing INSERT")
         cur.execute(sql, info)
+        db.commit()
+        logging.info("INSERT Committed")
     else:
         info = cur.execute(
             "SELECT * FROM RECEIVERS WHERE NAME=?",
