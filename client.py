@@ -27,8 +27,10 @@ class client:
         if ListReceivers == []:
             logging.info("Receivers not found")
             self.cur.execute('''CREATE TABLE RECEIVERS
-                (ID INT PRIMARY KEY     NOT NULL,
-                NAME           TEXT    NOT NULL);''')
+                (ID             INT     PRIMARY KEY,
+                NAME            TEXT    NOT NULL,
+                IP              TEXT    NOT NULL,
+                PORT            INT     NOT NULL);''')
             logging.info("Receivers table created")
         else:
             logging.info("Receivers found")
@@ -36,7 +38,8 @@ class client:
         if ListMessages == []:
             logging.info("Messages not found")
             self.cur.execute('''CREATE TABLE MESSAGES
-                (TO         TEXT         NOT NULL,
+                (ID         INT         PRIMARY KEY,
+                RECEIVER    TEXT        NOT NULL,
                 MESSAGE     TEXT        NOT NULL,
                 TIME        TEXT        NOT NULL,
                 ISSENT      INT         NOT NULL);''')
@@ -105,6 +108,9 @@ if __name__ == '__main__':
     format = "%(asctime)s: %(message)s"
     logging.basicConfig(format=format, level=logging.INFO,
                         datefmt="%H:%M:%S")
+    
+    db = sqlite3.connect("receivers.db")
+    cur = db.cursor()
 
     # my_server = server()
 
@@ -116,18 +122,47 @@ if __name__ == '__main__':
     #     target=my_server.server_loop)
     
     # serverThread.start()
-
-    ip_address = input("Enter your friends ip_address: ")
-    port = input("Enter your friends port: ")
-    hostPortTuple = (ip_address, int(port))
-
-    logging.info("Creating client object")
-    my_client = client(hostPortTuple)
-
-    clientThread = threading.Thread(
-        target=my_client.client_loop)
     
-    logging.info("Starting clientThread")
-    clientThread.start()
-    # serverThread.join()
-    clientThread.join()
+    ListReceivers = cur.execute("""SELECT NAME FROM RECEIVERS""").fetchall()
+
+    print("Please pick a receiver from the list:")
+    for receivers in ListReceivers:
+        print(receivers)
+    print("Create New")
+    name = input("Receiver: ")
+
+    if name.upper() == "CREATE NEW":
+        logging.info("Creating a new row in RECEIVERS")
+
+        sql = '''INSERT INTO RECEIVERS (NAME, IP, PORT) VALUES (?,?,?)'''
+
+        r_name = input("What is the receiver's name: ")
+        r_ip = input("Enter the receiver's ip_address: ")
+        r_port = input("Enter the receiver's port: ")
+        while(not r_port.isdigit()):
+            print("ERROR! The port must be an integer")
+            r_port = input("Enter the receiver's port: ")
+        info = (r_name.upper(), r_ip, int(r_port))
+
+        logging.info("Executing INSERT")
+        cur.execute(sql, info)
+    else:
+        info = cur.execute(
+            "SELECT * FROM RECEIVERS WHERE NAME=?",
+            (name,)
+        ).fetchall()
+    
+    print(info)
+
+    # hostPortTuple = (ip_address, int(port))
+
+    # logging.info("Creating client object")
+    # my_client = client(hostPortTuple)
+
+    # clientThread = threading.Thread(
+    #     target=my_client.client_loop)
+    
+    # logging.info("Starting clientThread")
+    # clientThread.start()
+    # # serverThread.join()
+    # clientThread.join()
