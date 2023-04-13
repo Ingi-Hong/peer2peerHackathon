@@ -6,12 +6,14 @@ import socket
 import threading
 import urllib.request
 import sqlite3
+from datetime import datetime as dt
 
 
 class client:
-    def __init__(self, hostPortTuple):
+    def __init__(self, name, hostPortTuple):
+        self.name = name
         # open the database, or create it if it doesn't exist
-        self.db = sqlite3.connect("receivers.db")
+        self.db = sqlite3.connect("receivers.db", check_same_thread=False)
         self.cur = self.db.cursor()
 
         # If the database is new, we need to create the tables. 
@@ -38,8 +40,7 @@ class client:
         if ListMessages == []:
             logging.info("Messages not found")
             self.cur.execute('''CREATE TABLE MESSAGES
-                (ID         INT         PRIMARY KEY,
-                RECEIVER    TEXT        NOT NULL,
+                (RECEIVER   TEXT        NOT NULL,
                 MESSAGE     TEXT        NOT NULL,
                 TIME        TEXT        NOT NULL,
                 ISSENT      INT         NOT NULL);''')
@@ -49,24 +50,42 @@ class client:
          
         try:
             logging.info("client __init__: Connecting to socket")
+            self.offline = False
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.s.connect(hostPortTuple)
-        except Exception as e:
-            print(e)
-            print(f"Connection invalid, messages sent to {hostPortTuple[0]} will be pending until connection is successful")
+        except TimeoutError:
+            print(f"Connection unsuccessful, Sending messages to {name} in offline mode")
+            self.offline = True
+            
+        except Exception as ex:
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print(message)
             exit(1)
 
     def client_send(self):
         while True:
-            s_msg = input().encode('utf-8')
-            if s_msg == '':
-                pass
-            if s_msg.decode() == 'exit':
-                print("wan exit")
-                break
+            s_msg = input(f"You: ").encode('utf-8')
+            if self.offline:
+                if s_msg.decode().upper() == 'EXIT':
+                    print("Exiting offline mode")
+                    return
+                else:
+                    sql_insert = '''INSERT INTO MESSAGES (RECEIVER, MESSAGE, TIME, ISSENT) 
+                                    VALUES (?,?,?,?)'''
+                
+                    info = (self.name, s_msg, dt.isoformat(dt.now()), 0)
+                    self.cur.execute(sql_insert, info)
+                    self.db.commit()
             else:
-                self.s.sendall(s_msg)
+                if s_msg == '':
+                    pass
+                if s_msg.decode().upper() == 'EXIT':
+                    print("wan exit")
+                    break
+                else:
+                    self.s.sendall(s_msg)
 
     def client_loop(self):
         senderThread = threading.Thread(target=self.client_send)
@@ -127,13 +146,12 @@ if __name__ == '__main__':
 
     print("Please pick a receiver from the list:")
     for receivers in ListReceivers:
-        print(receivers)
+        print(receivers[0])
     print("Create New")
     name = input("Receiver: ")
 
     if name.upper() == "CREATE NEW":
         logging.info("Creating a new row in RECEIVERS")
-
         sql = '''INSERT INTO RECEIVERS (NAME, IP, PORT) VALUES (?,?,?)'''
 
         r_name = input("What is the receiver's name: ")
@@ -150,21 +168,19 @@ if __name__ == '__main__':
         logging.info("INSERT Committed")
     else:
         info = cur.execute(
-            "SELECT * FROM RECEIVERS WHERE NAME=?",
-            (name,)
-        ).fetchall()
+            "SELECT NAME,IP,PORT FROM RECEIVERS WHERE NAME=?",
+            (name.upper(),)
+        ).fetchone()
     
-    print(info)
+    hostPortTuple = (info[1], int(info[2]))
 
-    # hostPortTuple = (ip_address, int(port))
+    logging.info("Creating client object")
+    my_client = client(info[0], hostPortTuple)
 
-    # logging.info("Creating client object")
-    # my_client = client(hostPortTuple)
-
-    # clientThread = threading.Thread(
-    #     target=my_client.client_loop)
+    clientThread = threading.Thread(
+        target=my_client.client_loop)
     
-    # logging.info("Starting clientThread")
-    # clientThread.start()
-    # # serverThread.join()
-    # clientThread.join()
+    logging.info("Starting clientThread")
+    clientThread.start()
+    # serverThread.join()
+    clientThread.join()
